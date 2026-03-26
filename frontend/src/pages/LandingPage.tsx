@@ -73,7 +73,7 @@ export default function LandingPage() {
 
   const handleSubmit = () => {
     if (prompt.trim()) {
-      navigate('/workbench')
+      navigate('/workbench', {state:{prompt}})
     }
   }
 
