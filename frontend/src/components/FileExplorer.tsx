@@ -7,6 +7,7 @@ import {
   FilePlus,
   FolderPlus,
 } from 'lucide-react'
+import { FileItem } from '../types'
 
 export interface FileNode {
   name: string
@@ -68,11 +69,13 @@ function getFileIcon(name: string) {
 interface FileExplorerProps {
   onFileSelect: (path: string) => void
   activeFile: string
+  files:FileItem[]
 }
 
 export default function FileExplorer({
   onFileSelect,
   activeFile,
+  files
 }: FileExplorerProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(['src', 'src/components', 'public'])
@@ -90,7 +93,7 @@ export default function FileExplorer({
     })
   }
 
-  const renderTree = (nodes: FileNode[], parentPath = '', depth = 0) => {
+  const renderTree = (nodes: FileItem[], parentPath = '', depth = 0) => {
     return nodes.map((node) => {
       const currentPath = parentPath
         ? `${parentPath}/${node.name}`
@@ -157,7 +160,7 @@ export default function FileExplorer({
           </button>
         </div>
       </div>
-      <div className="file-tree">{renderTree(sampleTree)}</div>
+      <div className="file-tree">{renderTree(files)}</div>
     </div>
   )
 }

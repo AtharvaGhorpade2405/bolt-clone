@@ -15,3 +15,11 @@ export interface Step {
   code?: string;
   path?: string;
 }
+
+export interface FileItem {
+  name: string;
+  type: 'file' | 'folder';
+  children?: FileItem[];
+  content?: string;
+  path: string;
+}

@@ -16,6 +16,7 @@ app.use(express.json())
 app.use(cors())
 
 app.post('/template', async (req, res)=>{
+  console.log("POST /template ", (new Date()).toLocaleTimeString())
   const prompt=req.body.prompt
   
   const response = await groq.chat.completions.create({
@@ -55,12 +56,13 @@ app.post('/template', async (req, res)=>{
 })
 
 app.post('/chat', async(req,res)=>{
+  console.log("POST /chat ", (new Date()).toLocaleTimeString())
   const messages=req.body.messages
 
   const response = await groq.chat.completions.create({
     messages: [ {"role":"system", "content": getSystemPrompt()}, ...messages],
     model: "openai/gpt-oss-20b",
-    max_completion_tokens: 200,
+    max_completion_tokens: 7500,
   });
   console.log(response.choices[0].message.content)
   res.json(response.choices[0].message.content)
