@@ -10,6 +10,8 @@ import TerminalPanel from "../components/TerminalPanel";
 import { BACKEND_URL } from "../config";
 import { FileItem, Step, StepType } from "../types/index";
 import { parseXml } from "../steps";
+import { useWebContainer } from "../hooks/useWebContatiner";
+import { WebContainer } from "@webcontainer/api";
 
 type ActivePanel = "code" | "preview";
 
@@ -20,7 +22,8 @@ export default function WorkbenchPage() {
   const [activePanel, setActivePanel] = useState<ActivePanel>("code");
   const [activeFile, setActiveFile] = useState("src/App.tsx");
   const [steps, setSteps] = useState<Step[]>([]);
-  const [files,setFiles]=useState<FileItem[]>([])
+  const [files,setFiles]=useState<FileItem[]>([]);
+  const webcontainer=useWebContainer();
   const [openFiles, setOpenFiles] = useState([
     // "src/App.tsx",
     // "src/index.css",
@@ -89,6 +92,53 @@ export default function WorkbenchPage() {
       }))
     }
   }, [steps, files]);
+
+  useEffect(() => {
+    const createMountStructure = (files: FileItem[]): Record<string, any> => {
+      const mountStructure: Record<string, any> = {};
+  
+      const processFile = (file: FileItem, isRootFolder: boolean) => {  
+        if (file.type === 'folder') {
+          // For folders, create a directory entry
+          mountStructure[file.name] = {
+            directory: file.children ? 
+              Object.fromEntries(
+                file.children.map(child => [child.name, processFile(child, false)])
+              ) 
+              : {}
+          };
+        } else if (file.type === 'file') {
+          if (isRootFolder) {
+            mountStructure[file.name] = {
+              file: {
+                contents: file.content || ''
+              }
+            };
+          } else {
+            // For files, create a file entry with contents
+            return {
+              file: {
+                contents: file.content || ''
+              }
+            };
+          }
+        }
+  
+        return mountStructure[file.name];
+      };
+  
+      // Process each top-level file/folder
+      files.forEach(file => processFile(file, true));
+  
+      return mountStructure;
+    };
+  
+    const mountStructure = createMountStructure(files);
+  
+    // Mount the structure if WebContainer is available
+    console.log(mountStructure);
+    webcontainer?.mount(mountStructure);
+  }, [files, webcontainer]);
 
 
   async function init() {
@@ -212,7 +262,7 @@ export default function WorkbenchPage() {
             className={activePanel !== "preview" ? "hidden" : ""}
             style={{ flex: 1, display: "flex" }}
           > */}
-            {activePanel=="preview" && <PreviewPanel/>}
+            {activePanel=="preview" && <PreviewPanel webcontainer={webcontainer}/>}
           {/* </div> */}
 
           {/* Terminal */}

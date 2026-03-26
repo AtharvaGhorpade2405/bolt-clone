@@ -1,11 +1,38 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  RotateCw,
-  Lock,
-} from 'lucide-react'
+import { WebContainer } from "@webcontainer/api";
+import { ArrowLeft, ArrowRight, RotateCw, Lock } from "lucide-react";
+import { useEffect, useState } from "react";
 
-export default function PreviewPanel() {
+interface PreviewPanelProps {
+  webcontainer: WebContainer;
+}
+
+export default function PreviewPanel({ webcontainer }: PreviewPanelProps) {
+  const [url, setUrl] = useState("");
+
+  async function main() {
+    const installProcess = await webcontainer.spawn("npm", ["install"]);
+
+    installProcess.output.pipeTo(
+      new WritableStream({
+        write(data) {
+          console.log(data);
+        },
+      }),
+    );
+
+    await webcontainer.spawn("npm", ["run", "dev"]);
+
+    // Wait for `server-ready` event
+    webcontainer.on("server-ready", (port, url) => {
+      setUrl(url);
+      console.log(url);
+      console.log(port);
+    });
+  }
+
+  useEffect(() => {
+    main();
+  }, []);
   return (
     <div className="preview-panel">
       {/* Preview Toolbar */}
@@ -23,17 +50,20 @@ export default function PreviewPanel() {
         </div>
         <div className="preview-url-bar">
           <Lock size={12} className="lock-icon" />
-          <span>localhost:5173</span>
+          <span>{url}</span>
         </div>
       </div>
 
       {/* Preview Content */}
       <div className="preview-iframe-container">
-        <div className="preview-placeholder">
-          <div className="preview-loader" />
-          <span>Loading preview...</span>
-        </div>
+        {!url && (
+          <div className="preview-placeholder">
+            <div className="preview-loader" />
+            <span>Loading preview...</span>
+          </div>
+        )}
+        {url && <iframe src={url}/>}
       </div>
     </div>
-  )
+  );
 }
