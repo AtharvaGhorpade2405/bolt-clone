@@ -19,7 +19,7 @@ export default function StepsSidebar({ steps }: StepsSidebarProps) {
   }
 
   return (
-    <aside className="chat-sidebar">
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div className="chat-header">
         <h3>
           <ListChecks size={14} />
@@ -64,6 +64,6 @@ export default function StepsSidebar({ steps }: StepsSidebarProps) {
           ))
         )}
       </div>
-    </aside>
+    </div>
   )
 }

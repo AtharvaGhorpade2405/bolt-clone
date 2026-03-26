@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Zap, Share2, Download, Code2, Eye } from "lucide-react";
+import { Zap, Share2, Download, Code2, Eye, Send } from "lucide-react";
 import StepsSidebar from "../components/ChatSidebar";
 import FileExplorer from "../components/FileExplorer";
 import CodeEditor from "../components/CodeEditor";
 import PreviewPanel from "../components/PreviewPanel";
-import TerminalPanel from "../components/TerminalPanel";
 import { BACKEND_URL } from "../config";
 import { FileItem, Step, StepType } from "../types/index";
 import { parseXml } from "../steps";
 import { useWebContainer } from "../hooks/useWebContatiner";
-import { WebContainer } from "@webcontainer/api";
 
 type ActivePanel = "code" | "preview";
 
@@ -22,124 +20,140 @@ export default function WorkbenchPage() {
   const [activePanel, setActivePanel] = useState<ActivePanel>("code");
   const [activeFile, setActiveFile] = useState("src/App.tsx");
   const [steps, setSteps] = useState<Step[]>([]);
-  const [files,setFiles]=useState<FileItem[]>([]);
-  const webcontainer=useWebContainer();
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const webcontainer = useWebContainer();
   const [openFiles, setOpenFiles] = useState([
     // "src/App.tsx",
     // "src/index.css",
     // "src/components/TodoList.tsx",
   ]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [llmMessages, setLlmMessages] = useState<
+    { role: "user" | "system" | "assistant"; content: string }[]
+  >([]);
 
   useEffect(() => {
     let originalFiles = [...files];
     let updateHappened = false;
-    steps.filter(({status}) => status === "pending").map(step => {
-      updateHappened = true;
-      if (step?.type === StepType.CreateFile) {
-        let parsedPath = step.path?.split("/") ?? []; // ["src", "components", "App.tsx"]
-        let currentFileStructure = [...originalFiles]; // {}
-        let finalAnswerRef = currentFileStructure;
-  
-        let currentFolder = ""
-        while(parsedPath.length) {
-          currentFolder = currentFolder === "" ? parsedPath[0] : `${currentFolder}/${parsedPath[0]}`;
-          let currentFolderName = parsedPath[0];
-          parsedPath = parsedPath.slice(1);
-  
-          if (!parsedPath.length) {
-            // final file
-            let file = currentFileStructure.find(x => x.path === currentFolder)
-            if (!file) {
-              currentFileStructure.push({
-                name: currentFolderName,
-                type: 'file',
-                path: currentFolder,
-                content: step.code
-              })
-            } else {
-              file.content = step.code;
-            }
-          } else {
-            /// in a folder
-            let folder = currentFileStructure.find(x => x.path === currentFolder)
-            if (!folder) {
-              // create the folder
-              currentFileStructure.push({
-                name: currentFolderName,
-                type: 'folder',
-                path: currentFolder,
-                children: []
-              })
-            }
-  
-            currentFileStructure = currentFileStructure.find(x => x.path === currentFolder)!.children!;
-          }
-        }
-        originalFiles = finalAnswerRef;
-      }
+    steps
+      .filter(({ status }) => status === "pending")
+      .map((step) => {
+        updateHappened = true;
+        if (step?.type === StepType.CreateFile) {
+          let parsedPath = step.path?.split("/") ?? []; // ["src", "components", "App.tsx"]
+          let currentFileStructure = [...originalFiles]; // {}
+          let finalAnswerRef = currentFileStructure;
 
-    })
+          let currentFolder = "";
+          while (parsedPath.length) {
+            currentFolder =
+              currentFolder === ""
+                ? parsedPath[0]
+                : `${currentFolder}/${parsedPath[0]}`;
+            let currentFolderName = parsedPath[0];
+            parsedPath = parsedPath.slice(1);
+
+            if (!parsedPath.length) {
+              // final file
+              let file = currentFileStructure.find(
+                (x) => x.path === currentFolder,
+              );
+              if (!file) {
+                currentFileStructure.push({
+                  name: currentFolderName,
+                  type: "file",
+                  path: currentFolder,
+                  content: step.code,
+                });
+              } else {
+                file.content = step.code;
+              }
+            } else {
+              /// in a folder
+              let folder = currentFileStructure.find(
+                (x) => x.path === currentFolder,
+              );
+              if (!folder) {
+                // create the folder
+                currentFileStructure.push({
+                  name: currentFolderName,
+                  type: "folder",
+                  path: currentFolder,
+                  children: [],
+                });
+              }
+
+              currentFileStructure = currentFileStructure.find(
+                (x) => x.path === currentFolder,
+              )!.children!;
+            }
+          }
+          originalFiles = finalAnswerRef;
+        }
+      });
 
     if (updateHappened) {
-
-      setFiles(originalFiles)
-      setSteps(steps => steps.map((s: Step) => {
-        return {
-          ...s,
-          status: "completed"
-        }
-        
-      }))
+      setFiles(originalFiles);
+      setSteps((steps) =>
+        steps.map((s: Step) => {
+          return {
+            ...s,
+            status: "completed",
+          };
+        }),
+      );
     }
   }, [steps, files]);
 
   useEffect(() => {
     const createMountStructure = (files: FileItem[]): Record<string, any> => {
       const mountStructure: Record<string, any> = {};
-  
-      const processFile = (file: FileItem, isRootFolder: boolean) => {  
-        if (file.type === 'folder') {
+
+      const processFile = (file: FileItem, isRootFolder: boolean) => {
+        if (file.type === "folder") {
           // For folders, create a directory entry
           mountStructure[file.name] = {
-            directory: file.children ? 
-              Object.fromEntries(
-                file.children.map(child => [child.name, processFile(child, false)])
-              ) 
-              : {}
+            directory: file.children
+              ? Object.fromEntries(
+                  file.children.map((child) => [
+                    child.name,
+                    processFile(child, false),
+                  ]),
+                )
+              : {},
           };
-        } else if (file.type === 'file') {
+        } else if (file.type === "file") {
           if (isRootFolder) {
             mountStructure[file.name] = {
               file: {
-                contents: file.content || ''
-              }
+                contents: file.content || "",
+              },
             };
           } else {
             // For files, create a file entry with contents
             return {
               file: {
-                contents: file.content || ''
-              }
+                contents: file.content || "",
+              },
             };
           }
         }
-  
+
         return mountStructure[file.name];
       };
-  
+
       // Process each top-level file/folder
-      files.forEach(file => processFile(file, true));
-  
+      files.forEach((file) => processFile(file, true));
+
       return mountStructure;
     };
-  
+
     const mountStructure = createMountStructure(files);
-  
+
     // Mount the structure if WebContainer is available
     console.log(mountStructure);
     webcontainer?.mount(mountStructure);
   }, [files, webcontainer]);
-
 
   async function init() {
     const response = await axios.post(`${BACKEND_URL}/template`, {
@@ -158,10 +172,33 @@ export default function WorkbenchPage() {
         content: content,
       })),
     });
-    setSteps(s=>[...s,...parseXml(stepsResponse.data).map(x=>({
+    setSteps((s) => [
+      ...s,
+      ...parseXml(stepsResponse.data).map((x) => ({
+        ...x,
+        status: "pending" as "pending",
+      })),
+    ]);
+
+    setLlmMessages(
+      [...prompts, prompt].map((content) => ({
+        role: "user",
+        content: content,
+      })),
+    );
+
+    setLlmMessages((x) => [
       ...x,
-      status:"pending" as "pending"
-    }))])
+      { role: "assistant", content: stepsResponse.data },
+    ]);
+
+    setSteps((s) => [
+      ...s,
+      ...parseXml(stepsResponse.data).map((x) => ({
+        ...x,
+        status: "pending" as "pending",
+      })),
+    ]);
   }
 
   useEffect(() => {
@@ -234,8 +271,49 @@ export default function WorkbenchPage() {
 
       {/* Body */}
       <div className="workbench-body">
-        {/* Steps Sidebar */}
-        <StepsSidebar steps={steps} />
+        {/* Chat Sidebar Area */}
+        <aside className="chat-sidebar">
+          <StepsSidebar steps={steps} />
+          <div className="chat-input-area">
+            <div className="chat-input-box">
+              <textarea
+                placeholder="Message bolt..."
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                rows={1}
+              />
+              <button
+                onClick={async () => {
+                  const newMessage = {
+                    role: "user" as "user",
+                    content: inputMessage,
+                  };
+                  const stepsResponse = await axios.post(
+                    `${BACKEND_URL}/chat`,
+                    {
+                      messages: [...llmMessages, newMessage],
+                    },
+                  );
+
+                  setSteps((s) => [
+                    ...s,
+                    ...parseXml(stepsResponse.data).map((x) => ({
+                      ...x,
+                      status: "pending" as "pending",
+                    })),
+                  ]);
+
+                  setLlmMessages((x) => [...x, newMessage]);
+                  setLlmMessages(x=>[...x,{role:"assistant",content:stepsResponse.data}])
+                  setInputMessage("");
+                }}
+                className="chat-send-btn"
+              >
+                <Send size={14} />
+              </button>
+            </div>
+          </div>
+        </aside>
 
         {/* Editor Area */}
         <div className="editor-area">
@@ -262,7 +340,9 @@ export default function WorkbenchPage() {
             className={activePanel !== "preview" ? "hidden" : ""}
             style={{ flex: 1, display: "flex" }}
           > */}
-            {activePanel=="preview" && <PreviewPanel webcontainer={webcontainer}/>}
+          {activePanel == "preview" && (
+            <PreviewPanel webcontainer={webcontainer} />
+          )}
           {/* </div> */}
 
           {/* Terminal */}
