@@ -3,36 +3,57 @@ import { ArrowLeft, ArrowRight, RotateCw, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface PreviewPanelProps {
-  webcontainer: WebContainer;
+  webcontainer: WebContainer | undefined;
+  filesReady: boolean;
 }
 
-export default function PreviewPanel({ webcontainer }: PreviewPanelProps) {
+export default function PreviewPanel({ webcontainer, filesReady }: PreviewPanelProps) {
   const [url, setUrl] = useState("");
 
-  async function main() {
-    const installProcess = await webcontainer.spawn("npm", ["install"]);
-
-    installProcess.output.pipeTo(
-      new WritableStream({
-        write(data) {
-          console.log(data);
-        },
-      }),
-    );
-
-    await webcontainer.spawn("npm", ["run", "dev"]);
-
-    // Wait for `server-ready` event
-    webcontainer.on("server-ready", (port, url) => {
-      setUrl(url);
-      console.log(url);
-      console.log(port);
-    });
-  }
-
   useEffect(() => {
+    if (!webcontainer || !filesReady) return;
+
+    let cancelled = false;
+
+    // Register listener BEFORE starting the dev server to avoid missing the event
+    webcontainer.on("server-ready", (port, url) => {
+      if (!cancelled) {
+        console.log("server-ready:", port, url);
+        setUrl(url);
+      }
+    });
+
+    async function main() {
+      const installProcess = await webcontainer!.spawn("npm", ["install"]);
+
+      installProcess.output.pipeTo(
+        new WritableStream({
+          write(data) {
+            console.log(data);
+          },
+        }),
+      );
+
+      // Wait for install to finish before starting dev server
+      await installProcess.exit;
+
+      const devProcess = await webcontainer!.spawn("npm", ["run", "dev"]);
+      devProcess.output.pipeTo(
+        new WritableStream({
+          write(data) {
+            console.log("DEV SERVER PWD:", data);
+          },
+        }),
+      );
+    }
+
     main();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [webcontainer, filesReady]);
+
   return (
     <div className="preview-panel">
       {/* Preview Toolbar */}
@@ -59,10 +80,10 @@ export default function PreviewPanel({ webcontainer }: PreviewPanelProps) {
         {!url && (
           <div className="preview-placeholder">
             <div className="preview-loader" />
-            <span>Loading preview...</span>
+            <span>{webcontainer ? "Loading preview..." : "Booting environment..."}</span>
           </div>
         )}
-        {url && <iframe src={url}/>}
+        {url && <iframe src={url} allow="cross-origin-isolated" />}
       </div>
     </div>
   );
