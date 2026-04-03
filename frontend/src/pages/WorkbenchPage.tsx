@@ -55,13 +55,8 @@ export default function WorkbenchPage() {
       .map((step) => {
         updateHappened = true;
         if (step?.type === StepType.CreateFile) {
-<<<<<<< Updated upstream
-          let parsedPath = step.path?.split("/") ?? []; // ["src", "components", "App.tsx"]
-          let currentFileStructure = [...originalFiles]; // {}
-=======
           let parsedPath = step.path?.split("/") ?? [];
           let currentFileStructure = [...originalFiles];
->>>>>>> Stashed changes
           let finalAnswerRef = currentFileStructure;
 
           let currentFolder = "";
@@ -74,10 +69,6 @@ export default function WorkbenchPage() {
             parsedPath = parsedPath.slice(1);
 
             if (!parsedPath.length) {
-<<<<<<< Updated upstream
-              // final file
-=======
->>>>>>> Stashed changes
               let file = currentFileStructure.find(
                 (x) => x.path === currentFolder,
               );
@@ -92,18 +83,10 @@ export default function WorkbenchPage() {
                 file.content = step.code;
               }
             } else {
-<<<<<<< Updated upstream
-              /// in a folder
-=======
->>>>>>> Stashed changes
               let folder = currentFileStructure.find(
                 (x) => x.path === currentFolder,
               );
               if (!folder) {
-<<<<<<< Updated upstream
-                // create the folder
-=======
->>>>>>> Stashed changes
                 currentFileStructure.push({
                   name: currentFolderName,
                   type: "folder",
@@ -323,11 +306,7 @@ export default function WorkbenchPage() {
           <div className="chat-input-area">
             <div className="chat-input-box">
               <textarea
-<<<<<<< Updated upstream
-                placeholder="Message bolt..."
-=======
                 placeholder="Message Forge..."
->>>>>>> Stashed changes
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 rows={1}
