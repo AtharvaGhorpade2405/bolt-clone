@@ -13,7 +13,9 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const app=express()
 app.use(express.json())
-app.use(cors())
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:5173"
+}))
 
 app.post('/template', async (req, res)=>{
   console.log("POST /template ", (new Date()).toLocaleTimeString())
