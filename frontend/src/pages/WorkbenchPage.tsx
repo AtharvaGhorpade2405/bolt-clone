@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Share2, Download, Code2, Eye, Send, Hammer, FolderArchive } from "lucide-react";
+import { Code2, Eye, Send, Hammer, FolderArchive } from "lucide-react";
 import StepsSidebar from "../components/ChatSidebar";
 import FileExplorer from "../components/FileExplorer";
 import CodeEditor from "../components/CodeEditor";
@@ -41,7 +41,7 @@ export default function WorkbenchPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const webcontainer = useWebContainer();
-  const [openFiles, setOpenFiles] = useState([]);
+  const [openFiles, setOpenFiles] = useState<string[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [llmMessages, setLlmMessages] = useState<
     { role: "user" | "system" | "assistant"; content: string }[]

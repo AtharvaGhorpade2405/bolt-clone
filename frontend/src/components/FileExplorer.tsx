@@ -15,41 +15,6 @@ export interface FileNode {
   children?: FileNode[]
 }
 
-const sampleTree: FileNode[] = [
-  {
-    name: 'src',
-    type: 'folder',
-    children: [
-      {
-        name: 'components',
-        type: 'folder',
-        children: [
-          { name: 'TodoList.tsx', type: 'file' },
-          { name: 'TodoItem.tsx', type: 'file' },
-          { name: 'Header.tsx', type: 'file' },
-          { name: 'AddTodo.tsx', type: 'file' },
-        ],
-      },
-      { name: 'App.tsx', type: 'file' },
-      { name: 'main.tsx', type: 'file' },
-      { name: 'index.css', type: 'file' },
-      { name: 'types.ts', type: 'file' },
-    ],
-  },
-  {
-    name: 'public',
-    type: 'folder',
-    children: [
-      { name: 'index.html', type: 'file' },
-      { name: 'favicon.svg', type: 'file' },
-    ],
-  },
-  { name: 'package.json', type: 'file' },
-  { name: 'tsconfig.json', type: 'file' },
-  { name: 'vite.config.ts', type: 'file' },
-  { name: '.gitignore', type: 'file' },
-]
-
 function getFileIcon(name: string) {
   const ext = name.split('.').pop()?.toLowerCase()
   const colorMap: Record<string, string> = {
