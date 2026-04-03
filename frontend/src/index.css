@@ -469,7 +469,7 @@ input, textarea {
   padding: 24px 40px;
   border-top: 1px solid var(--border-primary);
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   color: var(--text-tertiary);
   font-size: 0.8rem;
