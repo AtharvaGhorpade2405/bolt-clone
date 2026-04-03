@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Zap, Share2, Download, Code2, Eye, Send } from "lucide-react";
+import { Share2, Download, Code2, Eye, Send, Hammer, FolderArchive } from "lucide-react";
 import StepsSidebar from "../components/ChatSidebar";
 import FileExplorer from "../components/FileExplorer";
 import CodeEditor from "../components/CodeEditor";
@@ -13,6 +13,24 @@ import { useWebContainer } from "../hooks/useWebContatiner";
 
 type ActivePanel = "code" | "preview";
 
+// Files/folders to skip when generating ZIP
+const IGNORE_LIST = new Set([
+  "node_modules",
+  ".git",
+  ".next",
+  "dist",
+  "build",
+  ".cache",
+  ".DS_Store",
+  "Thumbs.db",
+  ".env",
+  ".env.local",
+]);
+
+function shouldIgnore(name: string): boolean {
+  return IGNORE_LIST.has(name);
+}
+
 export default function WorkbenchPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,12 +39,9 @@ export default function WorkbenchPage() {
   const [activeFile, setActiveFile] = useState("src/App.tsx");
   const [steps, setSteps] = useState<Step[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
   const webcontainer = useWebContainer();
-  const [openFiles, setOpenFiles] = useState([
-    // "src/App.tsx",
-    // "src/index.css",
-    // "src/components/TodoList.tsx",
-  ]);
+  const [openFiles, setOpenFiles] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [llmMessages, setLlmMessages] = useState<
     { role: "user" | "system" | "assistant"; content: string }[]
@@ -40,8 +55,13 @@ export default function WorkbenchPage() {
       .map((step) => {
         updateHappened = true;
         if (step?.type === StepType.CreateFile) {
+<<<<<<< Updated upstream
           let parsedPath = step.path?.split("/") ?? []; // ["src", "components", "App.tsx"]
           let currentFileStructure = [...originalFiles]; // {}
+=======
+          let parsedPath = step.path?.split("/") ?? [];
+          let currentFileStructure = [...originalFiles];
+>>>>>>> Stashed changes
           let finalAnswerRef = currentFileStructure;
 
           let currentFolder = "";
@@ -54,7 +74,10 @@ export default function WorkbenchPage() {
             parsedPath = parsedPath.slice(1);
 
             if (!parsedPath.length) {
+<<<<<<< Updated upstream
               // final file
+=======
+>>>>>>> Stashed changes
               let file = currentFileStructure.find(
                 (x) => x.path === currentFolder,
               );
@@ -69,12 +92,18 @@ export default function WorkbenchPage() {
                 file.content = step.code;
               }
             } else {
+<<<<<<< Updated upstream
               /// in a folder
+=======
+>>>>>>> Stashed changes
               let folder = currentFileStructure.find(
                 (x) => x.path === currentFolder,
               );
               if (!folder) {
+<<<<<<< Updated upstream
                 // create the folder
+=======
+>>>>>>> Stashed changes
                 currentFileStructure.push({
                   name: currentFolderName,
                   type: "folder",
@@ -107,64 +136,49 @@ export default function WorkbenchPage() {
 
   useEffect(() => {
     const createMountStructure = (files: FileItem[]): Record<string, any> => {
-      const mountStructure: Record<string, any> = {};
-
-      const processFile = (file: FileItem, isRootFolder: boolean) => {
+      const processFile = (file: FileItem): any => {
         if (file.type === "folder") {
-          // For folders, create a directory entry
-          mountStructure[file.name] = {
+          return {
             directory: file.children
               ? Object.fromEntries(
                   file.children.map((child) => [
                     child.name,
-                    processFile(child, false),
+                    processFile(child),
                   ]),
                 )
               : {},
           };
         } else if (file.type === "file") {
-          if (isRootFolder) {
-            mountStructure[file.name] = {
-              file: {
-                contents: file.content || "",
-              },
-            };
-          } else {
-            // For files, create a file entry with contents
-            return {
-              file: {
-                contents: file.content || "",
-              },
-            };
-          }
+          return {
+            file: {
+              contents: file.content || "",
+            },
+          };
         }
-
-        return mountStructure[file.name];
+        return {};
       };
 
-      // Process each top-level file/folder
-      files.forEach((file) => processFile(file, true));
-
-      return mountStructure;
+      return Object.fromEntries(
+        files.map((file) => [file.name, processFile(file)]),
+      );
     };
 
     const mountStructure = createMountStructure(files);
 
-    // Mount the structure if WebContainer is available
-    console.log(mountStructure);
-    webcontainer?.mount(mountStructure);
+    if (webcontainer && files.length > 0) {
+      webcontainer.mount(mountStructure).then(() => {
+        setIsMounted(true);
+      });
+    }
   }, [files, webcontainer]);
-
   async function init() {
     const response = await axios.post(`${BACKEND_URL}/template`, {
       prompt,
     });
 
     const { prompts, uiPrompts } = response.data;
-    // console.log("uiPrompts:", uiPrompts);
     const newSteps = parseXml(uiPrompts[0]);
     setSteps(newSteps);
-    // console.log(newSteps);
 
     const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
       messages: [...prompts, prompt].map((content) => ({
@@ -220,6 +234,40 @@ export default function WorkbenchPage() {
     }
   };
 
+  // ---- Download ZIP functionality ----
+  const handleDownloadZip = useCallback(async () => {
+    if (files.length === 0) return;
+
+    // Dynamically import JSZip
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+
+    const addFilesToZip = (items: FileItem[], zipFolder: any) => {
+      for (const item of items) {
+        if (shouldIgnore(item.name)) continue;
+
+        if (item.type === "file") {
+          zipFolder.file(item.name, item.content || "");
+        } else if (item.type === "folder" && item.children) {
+          const folder = zipFolder.folder(item.name);
+          addFilesToZip(item.children, folder);
+        }
+      }
+    };
+
+    addFilesToZip(files, zip);
+
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "project.zip";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [files]);
+
   return (
     <div className="workbench">
       {/* Top Bar */}
@@ -231,9 +279,9 @@ export default function WorkbenchPage() {
             style={{ cursor: "pointer" }}
           >
             <div className="logo-icon">
-              <Zap size={14} color="white" />
+              <Hammer size={14} color="white" />
             </div>
-            <span>bolt</span>
+            <span>Forge</span>
           </a>
         </div>
 
@@ -255,16 +303,14 @@ export default function WorkbenchPage() {
         </div>
 
         <div className="workbench-topbar-right">
-          <button className="topbar-btn">
-            <Share2 size={14} />
-            Share
-          </button>
           <button
-            className="btn-primary"
-            style={{ padding: "6px 16px", fontSize: "0.8rem" }}
+            className="topbar-btn"
+            onClick={handleDownloadZip}
+            title="Download project as ZIP"
+            disabled={files.length === 0}
           >
-            <Download size={14} />
-            Deploy
+            <FolderArchive size={14} />
+            Download ZIP
           </button>
         </div>
       </div>
@@ -277,7 +323,11 @@ export default function WorkbenchPage() {
           <div className="chat-input-area">
             <div className="chat-input-box">
               <textarea
+<<<<<<< Updated upstream
                 placeholder="Message bolt..."
+=======
+                placeholder="Message Forge..."
+>>>>>>> Stashed changes
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 rows={1}
@@ -336,17 +386,9 @@ export default function WorkbenchPage() {
           </div>
 
           {/* Preview Panel */}
-          {/* <div
-            className={activePanel !== "preview" ? "hidden" : ""}
-            style={{ flex: 1, display: "flex" }}
-          > */}
-          {activePanel == "preview" && (
-            <PreviewPanel webcontainer={webcontainer} />
-          )}
-          {/* </div> */}
-
-          {/* Terminal */}
-          {/* <TerminalPanel /> */}
+          <div style={{ display: activePanel === "preview" ? "flex" : "none", flex: 1, height: "100%", overflow: "hidden", minHeight: 0 }}>
+            <PreviewPanel webcontainer={webcontainer} filesReady={isMounted} />
+          </div>
         </div>
       </div>
     </div>
